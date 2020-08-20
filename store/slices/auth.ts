@@ -61,7 +61,7 @@ const fetchRefreshToken = createAsyncThunk('auth/refreshToken', async (data, thu
       token: { refreshToken },
     },
   } = thunkAPI.getState() as State;
-  const response = await ky
+  const response = (await ky
     .post(`${url}/oauth/v2/token`, {
       body: formData({
         grant_type: 'refresh_token',
@@ -70,7 +70,7 @@ const fetchRefreshToken = createAsyncThunk('auth/refreshToken', async (data, thu
         refresh_token: refreshToken,
       }),
     })
-    .json() as FetchTokenAPIResponse;
+    .json()) as FetchTokenAPIResponse;
 
   console.log({ response });
   return response;
