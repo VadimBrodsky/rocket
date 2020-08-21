@@ -6,7 +6,7 @@ import formData from '../../utils/formData';
 
 interface Token {
   accessToken: string;
-  expiresIn: number;
+  expires: number;
   refreshToken: string;
 }
 
@@ -45,11 +45,17 @@ const fetchToken = createAsyncThunk<Token, void, { state: State }>(
       refresh_token: refreshToken,
     } = response;
 
-    return { accessToken, expiresIn, refreshToken };
+    const expires = Date.now() + expiresIn * 10000;
+
+    return { accessToken, expires, refreshToken };
   },
   {
     condition(_args, { getState }) {
-      return true;
+      const {
+        auth: { loading },
+      } = getState();
+
+      return loading === 'idle';
     },
   },
 );
@@ -61,6 +67,7 @@ const fetchRefreshToken = createAsyncThunk('auth/refreshToken', async (data, thu
       token: { refreshToken },
     },
   } = thunkAPI.getState() as State;
+
   const response = (await ky
     .post(`${url}/oauth/v2/token`, {
       body: formData({
@@ -89,7 +96,7 @@ const { reducer, actions: sliceActions } = createSlice({
     token: {
       accessToken: '',
       refreshToken: '',
-      expiresIn: 0,
+      expires: 0,
     } as Token,
     loading: 'idle' as 'idle' | 'pending',
     currentRequestId: undefined as string | undefined,
@@ -130,18 +137,14 @@ const { reducer, actions: sliceActions } = createSlice({
       }
     });
 
-    builder.addCase(
-      fetchToken.rejected,
-
-      (state, action) => {
-        const { requestId } = action.meta;
-        if (state.loading === 'pending' && state.currentRequestId === requestId) {
-          state.loading = 'idle';
-          state.error = action.error;
-          state.currentRequestId = undefined;
-        }
-      },
-    );
+    builder.addCase(fetchToken.rejected, (state, action) => {
+      const { requestId } = action.meta;
+      if (state.loading === 'pending' && state.currentRequestId === requestId) {
+        state.loading = 'idle';
+        state.error = action.error;
+        state.currentRequestId = undefined;
+      }
+    });
   },
 });
 
